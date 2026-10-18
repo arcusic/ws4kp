@@ -1,4 +1,4 @@
-/// <reference path="jquery-3.1.0.min.js" />
+/// <reference path="jquery-3.7.1.min.js" />
 /// <reference path="Timer.js" />
 
 //timemachine.config({
@@ -374,13 +374,17 @@ var GetClosestCurrentWeather = function (WeatherParameters, Distance)
     var lon1 = parseFloat(WeatherParameters.Longitude) + degreeDistance;
     var boundingBox = `${lat0},${lon0},${lat1},${lon1}`;
 
+    //// Get the current weather from the next closest station.
+    //var Url = "https://aviationweather.gov/api/data/dataserver?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=1";
+    //Url += "&boundingBox=" + boundingBox;
+    //Url += "&radialDistance=" + Distance.toString();
+    //Url += ";" + WeatherParameters.Longitude;
+    //Url += "," + WeatherParameters.Latitude;
+    ////Url = "cors/?u=" + encodeURIComponent(Url);
+
     // Get the current weather from the next closest station.
-    var Url = "https://aviationweather.gov/api/data/dataserver?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=1";
-    Url += "&boundingBox=" + boundingBox;
-    Url += "&radialDistance=" + Distance.toString();
-    Url += ";" + WeatherParameters.Longitude;
-    Url += "," + WeatherParameters.Latitude;
-    //Url = "cors/?u=" + encodeURIComponent(Url);
+    var Url = "https://aviationweather.gov/api/data/metar?format=xml&hours=1";
+    Url += "&bbox=" + boundingBox;
 
     // Load the xml file using ajax 
     $.ajaxCORS({
@@ -3026,127 +3030,83 @@ Date.prototype.dst = function ()
 var GetWeatherHazards3 = function (WeatherParameters)
 {
     var ZoneId = WeatherParameters.ZoneId;
-    var HazardUrls = [];
-    var HazardCounter = 0;
 
     WeatherParameters.WeatherHazardConditions = 
     {
         ZoneId: WeatherParameters.ZoneId,
+        Headline: "",
         Hazards: [],
     };
 
-    var Url = "https://api.weather.gov/alerts/active.atom?zone=" + ZoneId;
+    var Url = "https://api.weather.gov/alerts/active?zone=" + ZoneId;
     //Url = "cors/?u=" + encodeURIComponent(Url);
 
-    // Load the xml file using ajax 
+    // Load the alerts using ajax 
     $.ajaxCORS({
         type: "GET",
         url: Url,
-        dataType: "text",
+        dataType: "json",
         crossDomain: true,
         cache: false,
-        success: function (text)
+        success: function (json)
         {
-            // IE doesn't support XML tags with colons.
-            text = text.replaceAll("<cap:", "<cap_");
-            text = text.replaceAll("</cap:", "</cap_");
+            console.log(json);
 
-            var $xml = $(text);
-            //console.log(xml);
+            var Now = new Date();
+            var Features = (json != null && json.features != null) ? json.features : [];
 
-            $xml.find("entry").each(function ()
+            // The NWS headline of the first alert is displayed on the first screen of the local forecast.
+            var Headline = "";
+            var FirstProperties = (Features.length > 0) ? Features[0].properties : null;
+            if (FirstProperties != null && FirstProperties.parameters != null &&
+                FirstProperties.parameters.NWSheadline != null && FirstProperties.parameters.NWSheadline.length > 0)
             {
-                var entry = $(this);
+                Headline = FirstProperties.parameters.NWSheadline[0];
+            }
 
-                // Skip Special Weather Statements.
-                //var cap_event = entry.find("*event");
-                var cap_event = entry.find("cap_event");
-                //if (cap_event.text() == "Special Weather Statement")
-                //{
-                //    return true;
-                //}
+            $(Features).each(function ()
+            {
+                var Properties = this.properties;
 
-                // Skip non-alerts.
-                //var cap_msgType = entry.find("*msgType");
-                var cap_msgType = entry.find("cap_msgType");
-                if (cap_msgType.text() != "Alert")
+                // Ignore everything that isn't an alert.
+                if (Properties == null || Properties.messageType != "Alert")
                 {
                     return true;
                 }
 
-                //var counter = 0;
-                //var summary = entry.find("summary");
-                //$(summary.text().split("...")).each(function ()
-                //{
-                //    var text = this.toString();
-                //    if (text == "" || text == " ")
-                //    {
-                //        return true;
-                //    }
+                var Effective = (Properties.effective != null) ? new Date(Properties.effective) : null;
 
-                //    counter++;
-                //    if (counter < 2)
-                //    {
-                //        return true;
-                //    }
+                // Alerts without an ending date fall back to the expiration date.
+                var EndDate = (Properties.ends != null) ? Properties.ends : Properties.expires;
+                var Ends = (EndDate != null) ? new Date(EndDate) : null;
 
-                //    WeatherParameters.WeatherHazardConditions.Summaries.push(text);
-                //    return false;
-                //});
+                // Ignore alerts that aren't currently in effect.
+                if (Effective != null && Now < Effective)
+                {
+                    return true;
+                }
 
-                var link = entry.find("link");
-                var Url = link.attr("href");
+                if (Ends != null && Now >= Ends)
+                {
+                    return true;
+                }
 
-                HazardUrls.push(Url);
+                if (Properties.description != null)
+                {
+                    WeatherParameters.WeatherHazardConditions.Hazards.push(Properties.description);
+                }
             });
 
-            if (HazardUrls.length == 0)
-            {
-                //WeatherParameters.WeatherHazardConditions.Hazards.push("TESTING TESTING 1-2-3 TESTING.");
-                //WeatherParameters.WeatherHazardConditions.Hazards.push("THIS IS A TEST\nTHIS IS SOME REALLY LONG MESSAGE THAT WE WOULD WANT TO WRAP AT SOME POINT.\n\nTHIS IS THE BEGINNING OF OTHER PARAGRAPH WHICH CAN THEN INDICATE THAT THERE IS SOME MORE TEXT THAT WOULD NEED TO BE WRAPPED.\n\n\I WOULD LIKE TO ADD SOME TEST TEXT HERE SO THAT IT WILL CAUSE THE SCREEN TO WRAP BECAUSE IT IS DISPLAYING MORE TEXT THAT WOULD NORMALLY FIX ON THE SCREEN; HOWEVER WE NEED TO ALSO TEST TO SEE IF THERE IS LESS HEIGHT THAN THE MAXIMUM HEIGHT.");
-                //WeatherParameters.WeatherHazardConditions.Hazards.push("...WARNING... .THIS IS NOT A DRILL! .THE RED HOUR IS ALMOST UPON US.  DO YOU HAVE A PLACE TO SLEEP IT OFF, AYUH?");
+            WeatherParameters.WeatherHazardConditions.Headline = Headline;
 
-                PopulateHazardConditions(WeatherParameters);
-                console.log(WeatherParameters.WeatherHazardConditions);
-                //WeatherParameters.Progress.Hazards = LoadStatuses.Loaded;
-                return;
+            PopulateHazardConditions(WeatherParameters);
+            console.log(WeatherParameters.WeatherHazardConditions);
+
+            // The local forecast may have already been drawn without the headline, so draw it again.
+            if (WeatherParameters.Progress.WordedForecast == LoadStatuses.Loaded)
+            {
+                PopulateLocalForecast(WeatherParameters);
             }
-
-            $(HazardUrls).each(function ()
-            {
-                var Url = this.toString();
-                //Url = "cors/?u=" + encodeURIComponent(Url);
-
-                $.ajaxCORS({
-                    type: "GET",
-                    url: Url,
-                    dataType: "xml",
-                    crossDomain: true,
-                    cache: true,
-                    success: function (xml)
-                    {
-                        var $xml = $(xml);
-                        console.log(xml);
-
-                        var description = $xml.find("description");
-                        WeatherParameters.WeatherHazardConditions.Hazards.push(description.text());
-
-                        HazardCounter++;
-                        if (HazardCounter == HazardUrls.length)
-                        {
-                            PopulateHazardConditions(WeatherParameters);
-                            console.log(WeatherParameters.WeatherHazardConditions);
-                            //WeatherParameters.Progress.Hazards = LoadStatuses.Loaded;
-                        }
-                    },
-                    error: function (xhr, error, errorThrown)
-                    {
-                        console.error("GetWeatherHazards3 failed for Url: " + Url);
-                        WeatherParameters.Progress.Hazards = LoadStatuses.Failed;
-                    }
-                });
-            });
-
         },
         error: function (xhr, error, errorThrown)
         {
@@ -3163,8 +3123,11 @@ var GetWeatherHazards3 = function (WeatherParameters)
 
 var GetWeatherMetar = function (WeatherParameters)
 {
-    var Url = "https://aviationweather.gov/api/data/dataserver?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=3";
-    Url += "&stationString=" + WeatherParameters.StationId;
+    //var Url = "https://aviationweather.gov/api/data/dataserver?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=3";
+    //Url += "&stationString=" + WeatherParameters.StationId;
+    var Url = "https://aviationweather.gov/api/data/metar?format=xml&hours=3";
+    Url += "&ids=" + WeatherParameters.StationId;
+
     //Url += "," + (new Date().getTime()); // Prevents caching
     //Url = "https://crossorigin.me/" + Url; // Need to do this for Chrome and CORS
     //Url = "cors/?u=" + encodeURIComponent(Url);
@@ -7449,7 +7412,27 @@ var PopulateLocalForecast = function (WeatherParameters)
 
     var DontLoadGifs = _DontLoadGifs;
 
-    $("#divLocalForecastAlerts").html(WeatherLocalForecast.Alerts.replaceAll("...", ""));
+    // The hazardous weather text of the first screen comes from the NWS headline of the first active alert.
+    var AlertText = "";
+    if (WeatherParameters.WeatherHazardConditions != null && WeatherParameters.WeatherHazardConditions.Headline != null)
+    {
+        AlertText = WeatherParameters.WeatherHazardConditions.Headline;
+    }
+
+    if (AlertText == "")
+    {
+        if (_Units == Units.Metric)
+        {
+            AlertText = WeatherLocalForecast.AlertsC;
+        }
+        else
+        {
+            AlertText = WeatherLocalForecast.Alerts;
+        }
+    }
+    AlertText = AlertText.replaceAll("...", "");
+
+    $("#divLocalForecastAlerts").html(AlertText);
     $(WeatherLocalForecast.Conditions).each(function (Index, Condition)
     {
         $("#divLocalForecast" + (Index + 1)).html(Condition.DayName.toUpperCase() + "..." + Condition.Text.toUpperCase());
@@ -7475,18 +7458,6 @@ var PopulateLocalForecast = function (WeatherParameters)
         var MaxRows = 7;
         var MaxCols = 32;
         var LocalForecastScreenTexts = [];
-
-        //var AlertText = WeatherLocalForecast.Alerts.replaceAll("...", "");
-        var AlertText = "";
-        if (_Units == Units.English)
-        {
-            AlertText = WeatherLocalForecast.Alerts;
-        }
-        else if (_Units == Units.Metric)
-        {
-            AlertText = WeatherLocalForecast.AlertsC;
-        }
-        AlertText = AlertText.replaceAll("...", "");
 
         var PrependAlert = false;
         //AlertText = "WIND ADVISORY IN EFFECT FROM 2 PM THIS AFTERNOON TO 6 AM EDT SUNDAY";
@@ -9698,13 +9669,17 @@ var GetRegionalStations = function (WeatherParameters, Distance)
     var lon1 = parseFloat(WeatherParameters.Longitude) + degreeDistance;
     var boundingBox = `${lat0},${lon0},${lat1},${lon1}`;
 
-    var Url = "https://aviationweather.gov/api/data/dataserver?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=1";
-    Url += "&boundingBox=" + boundingBox;
-    Url += "&radialDistance=" + Distance.toString();
-    Url += ";" + WeatherParameters.Longitude;
-    Url += "," + WeatherParameters.Latitude;
-    //Url += "," + (new Date().getTime()); // Prevents caching
-    //Url = "cors/?u=" + encodeURIComponent(Url);
+    //var Url = "https://aviationweather.gov/api/data/dataserver?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=1";
+    //Url += "&boundingBox=" + boundingBox;
+    //Url += "&radialDistance=" + Distance.toString();
+    //Url += ";" + WeatherParameters.Longitude;
+    //Url += "," + WeatherParameters.Latitude;
+    ////Url += "," + (new Date().getTime()); // Prevents caching
+    ////Url = "cors/?u=" + encodeURIComponent(Url);
+
+    // Get the current weather from the next closest station.
+    var Url = "https://aviationweather.gov/api/data/metar?format=xml&hours=1";
+    Url += "&bbox=" + boundingBox;
 
     var Total = _MaximumRegionalStations;
     var Count = 0;
@@ -10561,7 +10536,8 @@ var ShowRegionalMap = function (WeatherParameters, TomorrowForecast1, TomorrowFo
             var maxLon = MinMaxLatLon.MaxLongitude - 1; // Prevent cities from being cut off on the right side.
             var minLon = MinMaxLatLon.MinLongitude;
 
-            var Url = "https://aviationweather.gov/api/data/dataserver?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=1&minLon=" + minLon + "&minLat=" + minLat + "&maxLon=" + maxLon + "&maxLat=" + maxLat;
+            //var Url = "https://aviationweather.gov/api/data/dataserver?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=1&minLon=" + minLon + "&minLat=" + minLat + "&maxLon=" + maxLon + "&maxLat=" + maxLat;
+            var Url = "https://aviationweather.gov/api/data/metar?format=xml&hours=1&bbox=" + minLat + "," + minLon + "," + maxLat + "," + maxLon;
 
             if (DontLoadGifs == true)
             {
@@ -10837,9 +10813,11 @@ var ShowRegionalMap = function (WeatherParameters, TomorrowForecast1, TomorrowFo
                         return;
                     }
 
-                    var Url = "https://aviationweather.gov/api/data/dataserver?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=3";
-                    Url += "&stationString=" + StationId;
+                    //var Url = "https://aviationweather.gov/api/data/dataserver?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=3";
+                    //Url += "&stationString=" + StationId;
                     //Url = "cors/?u=" + encodeURIComponent(Url);
+                    var Url = "https://aviationweather.gov/api/data/metar?format=xml&hours=3";
+                    Url += "&ids=" + StationId;
 
                     // Load the xml file using ajax 
                     $.ajaxCORS({
@@ -12563,7 +12541,7 @@ var Progress = function (e)
             ////DrawText(context, "Star4000 Large", "16pt", "#ffff00", 170, 80, "Conditions", 3);
             //DrawText(context, "Star4000 Large", "16pt", "#ffff00", 170, 55, "WeatherStar", 3);
             //DrawText(context, "Star4000 Large", "16pt", "#ffff00", 170, 80, "4000+", 3);
-            DrawTitleText(context, "WeatherStar", "4000+ 1.82                             ");
+            DrawTitleText(context, "WeatherStar", "4000+ 1.84                             ");
 
             // Draw a box for the progress.
             //context.fillStyle = "#000000";
@@ -12988,8 +12966,8 @@ var DrawNoaaImage = function (context)
         {
             context.drawImage(_NoaaImage, 356, 39);
         };
-        //_NoaaImage.src = "Images/noaa4.png";
-        _NoaaImage.src = "Images/noaa5.gif";
+        //_NoaaImage.src = "images/noaa4.png";
+        _NoaaImage.src = "images/noaa5.gif";
     }
     else
     {
@@ -13008,9 +12986,9 @@ var DrawLogoImage = function (context)
             //SmoothingEnabled(context, true);
             context.drawImage(_LogoImage, 50, 30, 85, 67);
         };
-        //LogoImage.src = "Images/Logo1.png";
-        //_LogoImage.src = "Images/Logo3.gif";
-        _LogoImage.src = "Images/Logo3.png";
+        //LogoImage.src = "images/Logo1.png";
+        //_LogoImage.src = "images/Logo3.gif";
+        _LogoImage.src = "images/Logo3.png";
     }
     else
     {
