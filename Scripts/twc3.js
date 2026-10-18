@@ -5626,6 +5626,10 @@ var PopulateCurrentConditions = function (WeatherParameters) {
             break;
     }
 
+    if (WeatherCurrentConditions.WindDirection = "Undefined") {
+        WeatherCurrentConditions.WindDirection = "Vrbl";
+    }
+
     divTemperature.html(WeatherCurrentConditions.Temperature + "&deg;");
     divStation.html(WeatherCurrentConditions.StationName);
     divConditions.html(WeatherCurrentConditions.Conditions);
