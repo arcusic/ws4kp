@@ -5625,8 +5625,8 @@ var PopulateCurrentConditions = function (WeatherParameters) {
             Humidity = WeatherCurrentConditions.Humidity;
             break;
     }
-
-    if (WeatherCurrentConditions.WindDirection = "Undefined") {
+    
+    if (WeatherCurrentConditions.WindDirection === null || WeatherCurrentConditions.WindDirection === undefined) {
         WeatherCurrentConditions.WindDirection = "Vrbl";
     }
 
