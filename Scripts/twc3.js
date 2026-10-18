@@ -11720,8 +11720,8 @@ var DrawNoaaImage = function (context) {
         _NoaaImage.onload = function () {
             context.drawImage(_NoaaImage, 356, 39);
         };
-        //_NoaaImage.src = "Images/noaa4.png";
-        _NoaaImage.src = "Images/noaa5.gif";
+        //_NoaaImage.src = "images/noaa4.png";
+        _NoaaImage.src = "images/noaa5.gif";
     }
     else {
         context.drawImage(_NoaaImage, 356, 39);
@@ -11736,9 +11736,9 @@ var DrawLogoImage = function (context) {
             //SmoothingEnabled(context, true);
             context.drawImage(_LogoImage, 50, 30, 85, 67);
         };
-        //LogoImage.src = "Images/Logo1.png";
-        //_LogoImage.src = "Images/Logo3.gif";
-        _LogoImage.src = "Images/Logo3.png";
+        //LogoImage.src = "images/Logo1.png";
+        //_LogoImage.src = "images/Logo3.gif";
+        _LogoImage.src = "images/Logo3.png";
     }
     else {
         context.drawImage(_LogoImage, 50, 30, 85, 67);
