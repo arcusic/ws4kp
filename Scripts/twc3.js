@@ -2320,7 +2320,7 @@ var GetAirQuality3 = function (WeatherParameters) {
     }
     var _Date = date.getYYYYMMDD();
 
-    var Url = "http://www.airnowapi.org/aq/forecast/zipCode/?format=application/json&distance=25&API_KEY=E0E326E6-E199-4ABC-B382-0F9F9522E143";
+    var Url = "https://www.airnowapi.org/aq/forecast/current/?format=application/json&API_KEY=F66B8992-5B0C-4132-B231-10285B6FA302";
     Url += "&zipCode=" + encodeURIComponent(ZipCode);
     Url += "&date=" + encodeURIComponent(_Date);
 
