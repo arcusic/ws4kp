@@ -150,28 +150,28 @@ namespace ws4kp.Middleware
 
             var client = new WebClient();
             client.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36");
-            
+
             var expiration = uri.Host.ToLower() switch
-                    {
-                        "alerts.weather.gov" or 
-                        "api.weather.gov" or 
-                        "www.aviationweather.gov" or 
-                        "aviationweather.gov" or 
-                        "mesonet.agron.iastate.edu" or 
-                        "radar.weather.gov" or 
-                        "www2.ehs.niu.edu" 
-                            => TimeSpan.FromMinutes(5),// Updates frequently
-                        "tidesandcurrents.noaa.gov" or 
-                        "l-36.com" or 
-                        "airquality.weather.gov" or 
-                        "airnow.gov" or 
-                        "www.airnowapi.org" or 
-                        "tgftp.nws.noaa.gov" or 
-                        "www.cpc.ncep.noaa.gov" or 
-                        "api.usno.navy.mil" 
-                            => TimeSpan.FromMinutes(180),// Updates less often
-                        _ => TimeSpan.FromMinutes(60),
-                    };
+            {
+                "alerts.weather.gov" or
+                "api.weather.gov" or
+                "www.aviationweather.gov" or
+                "aviationweather.gov" or
+                "mesonet.agron.iastate.edu" or
+                "radar.weather.gov" or
+                "www2.ehs.niu.edu"
+                    => TimeSpan.FromMinutes(5),// Updates frequently
+                "tidesandcurrents.noaa.gov" or
+                "l-36.com" or
+                "airquality.weather.gov" or
+                "airnow.gov" or
+                "www.airnowapi.org" or
+                "tgftp.nws.noaa.gov" or
+                "www.cpc.ncep.noaa.gov" or
+                "api.usno.navy.mil"
+                    => TimeSpan.FromMinutes(180),// Updates less often
+                _ => TimeSpan.FromMinutes(60),
+            };
 
             string Origin = $"{uri.Scheme}://{uri.Host}";
             client.Headers.Add("Origin", Origin);
